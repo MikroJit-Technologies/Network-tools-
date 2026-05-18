@@ -43,11 +43,19 @@ make install
 make install-full
 ```
 
+Update an existing checkout and reinstall:
+
+```sh
+./install.sh --update
+```
+
 ## Usage
 
 ```sh
 nt help
 nt doctor
+nt quick
+nt tools
 nt summary
 nt dns github.com
 nt http https://github.com
@@ -60,6 +68,7 @@ nt capture any
 nt wifi
 nt export
 nt path
+nt fix
 nt vpn
 nt firewall
 ```
@@ -67,6 +76,8 @@ nt firewall
 ## Commands
 
 - `doctor` - show installed network tools and missing recommendations
+- `quick` - run a short connectivity and local-network check
+- `tools` - show grouped tool inventory
 - `summary` - show interfaces, routes, DNS, public IP, and listening ports
 - `interfaces` - show IP addresses and link details
 - `routes` - show routes
@@ -83,6 +94,7 @@ nt firewall
 - `monitor [seconds]` - watch the network overview
 - `export [file]` - write a diagnostic report
 - `path` - show installed command and config paths
+- `fix` - clear stale `nt` aliases and reload shell integration
 - `vpn` - show Tailscale, WireGuard, and OpenVPN status
 - `firewall` - show UFW, nftables, and iptables status
 - `speed` - run `speedtest` if installed
@@ -118,6 +130,12 @@ The installer adds this managed block to `~/.zshrc` automatically:
 ```
 
 Use `./install.sh --no-rc` if you want to manage shell startup yourself.
+
+If `nt` ever runs another alias from an old shell session, run:
+
+```sh
+nt fix
+```
 
 ## Recommended Packages
 

@@ -4,6 +4,8 @@ _nt() {
   local -a commands
   commands=(
     'doctor:show installed and missing network tools'
+    'quick:run short connectivity and local-network check'
+    'tools:show grouped tool inventory'
     'summary:show compact network overview'
     'interfaces:show interfaces'
     'routes:show routes'
@@ -20,6 +22,7 @@ _nt() {
     'monitor:watch network overview'
     'export:write diagnostic report'
     'path:show installed paths'
+    'fix:clear stale aliases and reload shell integration'
     'vpn:show VPN status'
     'firewall:show firewall status'
     'speed:run speedtest'

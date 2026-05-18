@@ -11,6 +11,8 @@ zsh -n shell/network-tools.zsh
 ./bin/nt help >/dev/null
 ./bin/nt doctor >/dev/null
 ./bin/nt version >/dev/null
+./bin/nt tools >/dev/null
+./bin/nt path >/dev/null
 ./install.sh --dry-run --no-verify >/dev/null 2>&1
 ./uninstall.sh --dry-run >/dev/null 2>&1
 

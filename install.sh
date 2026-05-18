@@ -8,6 +8,7 @@ check_only=0
 no_verify=0
 no_shell=0
 no_rc=0
+update_repo=0
 stamp="$(date +%Y%m%d-%H%M%S)"
 os_name="$(uname -s)"
 rc_marker_begin="# >>> network-tools >>>"
@@ -24,6 +25,7 @@ Options:
   --no-verify     Skip repo verification before installing.
   --no-shell      Skip installing shell integration file.
   --no-rc         Do not update ~/.zshrc with shell integration.
+  --update        Pull the latest git changes before installing.
 EOF
 }
 
@@ -85,6 +87,16 @@ install_dependencies() {
   else
     warn "No supported package manager found. Install manually:"
     printf '  %s\n' "$(recommended_packages)"
+  fi
+}
+
+update_repository() {
+  section "Updating repository"
+
+  if [ -d "$repo_dir/.git" ] && has git; then
+    run git -C "$repo_dir" pull --ff-only
+  else
+    warn "This directory is not a git checkout; skipping update."
   fi
 }
 
@@ -188,6 +200,7 @@ while [ "$#" -gt 0 ]; do
     --no-verify) no_verify=1 ;;
     --no-shell) no_shell=1 ;;
     --no-rc) no_rc=1 ;;
+    --update) update_repo=1 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
   esac
@@ -195,6 +208,10 @@ while [ "$#" -gt 0 ]; do
 done
 
 section "network-tools installer"
+
+if [ "$update_repo" -eq 1 ]; then
+  update_repository
+fi
 
 if [ "$install_deps" -eq 1 ]; then
   install_dependencies
@@ -236,3 +253,4 @@ fi
 log ""
 log "Installed network-tools."
 log 'Run: nt help'
+log 'If this terminal still has an old nt alias, run: unalias nt 2>/dev/null; hash -r'

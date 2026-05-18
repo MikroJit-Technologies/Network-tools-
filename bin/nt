@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-VERSION="0.2.0"
+VERSION="0.3.0"
 OS_NAME="$(uname -s)"
 
 log() {
@@ -43,6 +43,8 @@ Usage: nt <command> [args]
 
 Commands:
   doctor                 Show installed and missing network tools
+  quick                  Run a short connectivity and local-network check
+  tools                  Show tool inventory grouped by purpose
   summary                Show a compact network overview
   interfaces             Show interface addresses and link state
   routes                 Show routes
@@ -59,6 +61,7 @@ Commands:
   monitor [seconds]      Refresh network overview
   export [file]          Write a diagnostic report
   path                   Show installed nt path and config paths
+  fix                    Clear stale aliases and reload shell integration
   vpn                    Show VPN/tunnel status
   firewall               Show firewall status
   speed                  Run speedtest if available
@@ -101,6 +104,61 @@ doctor() {
     fi
   done
   unset recommended
+}
+
+print_tool_group() {
+  label="$1"
+  shift
+
+  section "$label"
+  for cmd in "$@"; do
+    if has "$cmd"; then
+      printf 'ok      %-14s %s\n' "$cmd" "$(command -v "$cmd")"
+    else
+      printf 'missing %s\n' "$cmd"
+    fi
+  done
+}
+
+tools() {
+  print_tool_group "Basics" ip ifconfig ss netstat lsof ping curl wget nc
+  print_tool_group "DNS and HTTP" dig nslookup host whois openssl
+  print_tool_group "Trace and scan" traceroute tracepath mtr nmap
+  print_tool_group "Capture" tcpdump tshark wireshark
+  if [ "$OS_NAME" = "Darwin" ]; then
+    print_tool_group "Wi-Fi and device" networksetup
+    print_tool_group "Firewall" pfctl
+  else
+    print_tool_group "Wi-Fi and device" ethtool iw nmcli
+    print_tool_group "Firewall" nft ufw iptables
+  fi
+  print_tool_group "VPN and remote" tailscale wg openvpn ssh scp sftp rsync
+}
+
+quick() {
+  section "Local command"
+  command -v nt || true
+  printf 'version %s\n' "$VERSION"
+
+  section "Interfaces"
+  if [ "$OS_NAME" = "Darwin" ]; then
+    ifconfig | sed -n '1,40p'
+  elif has ip; then
+    quiet_run ip -brief address
+  fi
+
+  section "Default route"
+  if [ "$OS_NAME" = "Darwin" ]; then
+    netstat -rn 2>/dev/null | sed -n '1,20p' || true
+  elif has ip; then
+    quiet_run ip route show default
+  fi
+
+  section "DNS"
+  dns "${1:-github.com}" || true
+
+  section "Public IP"
+  myip || true
 }
 
 summary() {
@@ -333,6 +391,38 @@ paths() {
   printf '%s\n' "$OS_NAME"
 }
 
+fix() {
+  section "Shell alias"
+  if [ -n "${ZSH_VERSION:-}" ] || [ -n "${BASH_VERSION:-}" ]; then
+    unalias nt 2>/dev/null || true
+    hash -r 2>/dev/null || true
+    log "cleared stale nt alias in this shell"
+  else
+    log "run this in your shell if nt is still aliased: unalias nt 2>/dev/null; hash -r"
+  fi
+
+  section "Shell integration"
+  integration="$HOME/.config/network-tools/network-tools.zsh"
+  if [ -r "$integration" ]; then
+    log "found $integration"
+    if [ -n "${ZSH_VERSION:-}" ]; then
+      # shellcheck disable=SC1090
+      . "$integration"
+      log "reloaded zsh integration"
+    fi
+  else
+    log "missing $integration"
+  fi
+
+  section "Result"
+  if has nt; then
+    command -v nt
+    nt version
+  else
+    log "nt is not in PATH; add ~/.local/bin to PATH or rerun ./install.sh"
+  fi
+}
+
 scan() {
   target="${1:-}"
   if [ -z "$target" ]; then
@@ -441,6 +531,8 @@ shift || true
 
 case "$cmd" in
   doctor) doctor "$@" ;;
+  quick) quick "$@" ;;
+  tools) tools "$@" ;;
   summary) summary "$@" ;;
   interfaces|ifaces) interfaces "$@" ;;
   routes|route) routes "$@" ;;
@@ -457,6 +549,7 @@ case "$cmd" in
   monitor|watch) monitor "$@" ;;
   export|report) export_report "$@" ;;
   path|paths) paths "$@" ;;
+  fix) fix "$@" ;;
   vpn) vpn "$@" ;;
   firewall|fw) firewall "$@" ;;
   speed) speed "$@" ;;
