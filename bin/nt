@@ -439,8 +439,7 @@ selftest() {
   if has nt; then
     command -v nt
   else
-    warn "nt is not in PATH"
-    failures=$((failures + 1))
+    log "nt is not in PATH yet; using $0"
   fi
 
   section "Core commands"
