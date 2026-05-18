@@ -1,0 +1,263 @@
+#!/usr/bin/env sh
+set -eu
+
+VERSION="0.1.0"
+
+log() {
+  printf '%s\n' "$*"
+}
+
+section() {
+  log ""
+  log "==> $*"
+}
+
+has() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+run_if() {
+  cmd="$1"
+  shift
+
+  if has "$cmd"; then
+    "$cmd" "$@"
+  else
+    printf 'missing command: %s\n' "$cmd" >&2
+    return 127
+  fi
+}
+
+usage() {
+  cat <<'EOF'
+Usage: nt <command> [args]
+
+Commands:
+  doctor                 Show installed and missing network tools
+  summary                Show a compact network overview
+  interfaces             Show interface addresses and link state
+  routes                 Show routes
+  dns [host]             Show DNS status and query a host
+  ping [host]            Ping a host, default 1.1.1.1
+  trace [host]           Trace route to a host, default 1.1.1.1
+  ports                  Show listening TCP/UDP ports
+  scan <target>          Run a fast nmap scan
+  capture [iface] [file] Capture packets with tcpdump
+  vpn                    Show VPN/tunnel status
+  firewall               Show firewall status
+  speed                  Run speedtest if available
+  myip                   Show public IP address
+  help                   Show this help
+EOF
+}
+
+doctor() {
+  section "Core"
+  for cmd in ip ss ping curl; do
+    if has "$cmd"; then
+      printf 'ok      %s\n' "$cmd"
+    else
+      printf 'missing %s\n' "$cmd"
+    fi
+  done
+
+  section "Recommended"
+  for cmd in ifconfig netstat lsof traceroute tracepath mtr dig nslookup host wget nc nmap tcpdump tshark ethtool iw nmcli resolvectl nft ufw ssh rsync tailscale wg openvpn; do
+    if has "$cmd"; then
+      printf 'ok      %-14s %s\n' "$cmd" "$(command -v "$cmd")"
+    else
+      printf 'missing %s\n' "$cmd"
+    fi
+  done
+}
+
+summary() {
+  section "Interfaces"
+  run_if ip -brief address || true
+
+  section "Routes"
+  run_if ip route || true
+
+  section "DNS"
+  if has resolvectl; then
+    resolvectl status 2>/dev/null | sed -n '1,80p' || true
+  elif [ -f /etc/resolv.conf ]; then
+    sed -n '1,40p' /etc/resolv.conf
+  fi
+
+  section "Public IP"
+  myip || true
+
+  section "Listening ports"
+  ports || true
+}
+
+interfaces() {
+  run_if ip -brief address
+  section "Links"
+  run_if ip -brief link
+}
+
+routes() {
+  run_if ip route
+  section "Rules"
+  ip rule 2>/dev/null || true
+}
+
+dns() {
+  host="${1:-github.com}"
+
+  if has resolvectl; then
+    section "Resolver"
+    resolvectl status 2>/dev/null | sed -n '1,80p' || true
+  fi
+
+  section "Query $host"
+  if has dig; then
+    dig +short "$host"
+  elif has host; then
+    host "$host"
+  else
+    run_if nslookup "$host"
+  fi
+}
+
+ping_host() {
+  host="${1:-1.1.1.1}"
+  run_if ping -c 4 "$host"
+}
+
+trace_host() {
+  host="${1:-1.1.1.1}"
+
+  if has mtr; then
+    mtr -rwzc 5 "$host"
+  elif has traceroute; then
+    traceroute "$host"
+  else
+    run_if tracepath "$host"
+  fi
+}
+
+ports() {
+  if has ss; then
+    ss -tulpn
+  else
+    run_if netstat -tulpn
+  fi
+}
+
+scan() {
+  target="${1:-}"
+  if [ -z "$target" ]; then
+    printf 'usage: nt scan <target>\n' >&2
+    return 2
+  fi
+
+  run_if nmap -T4 --top-ports 100 "$target"
+}
+
+capture() {
+  iface="${1:-any}"
+  file="${2:-capture-$(date +%Y%m%d-%H%M%S).pcap}"
+
+  if ! has tcpdump; then
+    printf 'missing command: tcpdump\n' >&2
+    return 127
+  fi
+
+  printf 'capturing on %s to %s; press Ctrl+C to stop\n' "$iface" "$file"
+  tcpdump -i "$iface" -w "$file"
+}
+
+vpn() {
+  section "Tailscale"
+  if has tailscale; then
+    tailscale status || true
+  else
+    log "tailscale not installed"
+  fi
+
+  section "WireGuard"
+  if has wg; then
+    wg show || true
+  else
+    log "wireguard tools not installed"
+  fi
+
+  section "OpenVPN"
+  if has systemctl; then
+    systemctl --no-pager --type=service --state=running | grep -i openvpn || true
+  elif has openvpn; then
+    log "openvpn command is installed"
+  else
+    log "openvpn not installed"
+  fi
+}
+
+firewall() {
+  section "UFW"
+  if has ufw; then
+    ufw status verbose || true
+  else
+    log "ufw not installed"
+  fi
+
+  section "nftables"
+  if has nft; then
+    nft list ruleset 2>/dev/null || true
+  else
+    log "nft not installed"
+  fi
+
+  section "iptables"
+  if has iptables; then
+    iptables -S 2>/dev/null || true
+  else
+    log "iptables not installed"
+  fi
+}
+
+speed() {
+  if has speedtest; then
+    speedtest
+  elif has speedtest-cli; then
+    speedtest-cli
+  else
+    printf 'missing command: speedtest or speedtest-cli\n' >&2
+    return 127
+  fi
+}
+
+myip() {
+  if has curl; then
+    curl -fsS https://ifconfig.me
+    printf '\n'
+  else
+    run_if wget -qO- https://ifconfig.me
+    printf '\n'
+  fi
+}
+
+cmd="${1:-help}"
+shift || true
+
+case "$cmd" in
+  doctor) doctor "$@" ;;
+  summary) summary "$@" ;;
+  interfaces|ifaces) interfaces "$@" ;;
+  routes|route) routes "$@" ;;
+  dns) dns "$@" ;;
+  ping) ping_host "$@" ;;
+  trace|traceroute) trace_host "$@" ;;
+  ports) ports "$@" ;;
+  scan) scan "$@" ;;
+  capture|cap) capture "$@" ;;
+  vpn) vpn "$@" ;;
+  firewall|fw) firewall "$@" ;;
+  speed) speed "$@" ;;
+  myip|ip) myip "$@" ;;
+  help|-h|--help) usage ;;
+  version|-v|--version) log "$VERSION" ;;
+  *) usage >&2; exit 2 ;;
+esac

@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+set -eu
+
+sh -n install.sh
+sh -n uninstall.sh
+sh -n verify.sh
+sh -n bin/nt
+zsh -n completions/nt.zsh
+
+./bin/nt help >/dev/null
+./bin/nt doctor >/dev/null
+./install.sh --dry-run --no-verify >/dev/null 2>&1
+./uninstall.sh --dry-run >/dev/null 2>&1
+
+if command -v shellcheck >/dev/null 2>&1; then
+  shellcheck install.sh uninstall.sh verify.sh bin/nt
+fi
+
+printf 'verify ok\n'
