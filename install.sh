@@ -7,8 +7,11 @@ install_deps=0
 check_only=0
 no_verify=0
 no_shell=0
+no_rc=0
 stamp="$(date +%Y%m%d-%H%M%S)"
 os_name="$(uname -s)"
+rc_marker_begin="# >>> network-tools >>>"
+rc_marker_end="# <<< network-tools <<<"
 
 usage() {
   cat <<'EOF'
@@ -20,6 +23,7 @@ Options:
   --install-deps  Install recommended network packages, then install nt.
   --no-verify     Skip repo verification before installing.
   --no-shell      Skip installing shell integration file.
+  --no-rc         Do not update ~/.zshrc with shell integration.
 EOF
 }
 
@@ -134,6 +138,48 @@ install_file() {
   fi
 }
 
+install_zshrc_block() {
+  zshrc="$HOME/.zshrc"
+  integration='$HOME/.config/network-tools/network-tools.zsh'
+  integration_line="[ -r \"$integration\" ] && source \"$integration\""
+
+  if [ "$no_shell" -eq 1 ] || [ "$no_rc" -eq 1 ]; then
+    return 0
+  fi
+
+  if [ -f "$zshrc" ] &&
+    grep -F "$rc_marker_begin" "$zshrc" >/dev/null 2>&1 &&
+    grep -F "$integration_line" "$zshrc" >/dev/null 2>&1; then
+    log "unchanged $zshrc network-tools block"
+    return 0
+  fi
+
+  if [ -f "$zshrc" ]; then
+    run cp "$zshrc" "$zshrc.backup.$stamp"
+  fi
+
+  run mkdir -p "$(dirname -- "$zshrc")"
+  if [ "$dry_run" -eq 1 ]; then
+    log "would update $zshrc with network-tools shell integration"
+  else
+    if [ -f "$zshrc" ] && grep -F "$rc_marker_begin" "$zshrc" >/dev/null 2>&1; then
+      tmp="${zshrc}.network-tools.$$"
+      awk -v begin="$rc_marker_begin" -v end="$rc_marker_end" '
+        $0 == begin { skip = 1; next }
+        $0 == end { skip = 0; next }
+        skip != 1 { print }
+      ' "$zshrc" >"$tmp"
+      mv "$tmp" "$zshrc"
+    fi
+    {
+      printf '\n%s\n' "$rc_marker_begin"
+      printf '%s\n' "$integration_line"
+      printf '%s\n' "$rc_marker_end"
+    } >>"$zshrc"
+    log "updated $zshrc with network-tools shell integration"
+  fi
+}
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --dry-run) dry_run=1 ;;
@@ -141,6 +187,7 @@ while [ "$#" -gt 0 ]; do
     --install-deps) install_deps=1 ;;
     --no-verify) no_verify=1 ;;
     --no-shell) no_shell=1 ;;
+    --no-rc) no_rc=1 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
   esac
@@ -172,6 +219,7 @@ install_file "$repo_dir/completions/nt.zsh" "$HOME/.config/network-tools/complet
 if [ "$no_shell" -ne 1 ]; then
   install_file "$repo_dir/shell/network-tools.zsh" "$HOME/.config/network-tools/network-tools.zsh"
 fi
+install_zshrc_block
 
 section "Post-install check"
 if [ "$dry_run" -eq 1 ]; then
@@ -179,6 +227,10 @@ if [ "$dry_run" -eq 1 ]; then
 else
   "$HOME/.local/bin/nt" doctor >/dev/null
   log "nt doctor ok"
+  if has zsh && [ -f "$HOME/.zshrc" ]; then
+    zsh -n "$HOME/.zshrc"
+    log "zshrc syntax ok"
+  fi
 fi
 
 log ""

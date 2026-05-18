@@ -24,6 +24,7 @@ This installs:
 - `nt` command to `~/.local/bin/nt`
 - shell completion to `~/.config/network-tools/completions/nt.zsh`
 - shell integration to `~/.config/network-tools/network-tools.zsh`
+- managed `.zshrc` block so completion loads automatically
 
 ## Full Install
 
@@ -108,11 +109,15 @@ make verify
 
 ## Shell Integration
 
-For Zsh completion, source the integration file from your `.zshrc`:
+The installer adds this managed block to `~/.zshrc` automatically:
 
 ```sh
-source ~/.config/network-tools/network-tools.zsh
+# >>> network-tools >>>
+[ -r "$HOME/.config/network-tools/network-tools.zsh" ] && source "$HOME/.config/network-tools/network-tools.zsh"
+# <<< network-tools <<<
 ```
+
+Use `./install.sh --no-rc` if you want to manage shell startup yourself.
 
 ## Recommended Packages
 
