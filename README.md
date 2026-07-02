@@ -1,6 +1,6 @@
 # Network Tools
 
-[![CI](https://github.com/12MICKY/Network-tools-/actions/workflows/ci.yml/badge.svg)](https://github.com/12MICKY/Network-tools-/actions/workflows/ci.yml)
+[![CI](https://github.com/MikroJit-Technologies/Network-tools-/actions/workflows/ci.yml/badge.svg)](https://github.com/MikroJit-Technologies/Network-tools-/actions/workflows/ci.yml)
 
 Practical macOS/Linux network toolkit with one command for quick diagnostics, DNS
 checks, port checks, scans, packet capture helpers, VPN status, and firewall
@@ -26,13 +26,13 @@ Direct install:
 One-line install from GitHub:
 
 ```sh
-git clone https://github.com/12MICKY/Network-tools-.git && cd Network-tools- && ./install.sh
+git clone https://github.com/MikroJit-Technologies/Network-tools-.git && cd Network-tools- && ./install.sh
 ```
 
 One-line guided setup:
 
 ```sh
-git clone https://github.com/12MICKY/Network-tools-.git && cd Network-tools- && ./setup.sh
+git clone https://github.com/MikroJit-Technologies/Network-tools-.git && cd Network-tools- && ./setup.sh
 ```
 
 This installs:
