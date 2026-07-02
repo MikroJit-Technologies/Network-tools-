@@ -1,194 +1,178 @@
 # Network Tools
 
 [![CI](https://github.com/MikroJit-Technologies/Network-tools-/actions/workflows/ci.yml/badge.svg)](https://github.com/MikroJit-Technologies/Network-tools-/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Practical macOS/Linux network toolkit with one command for quick diagnostics, DNS
-checks, port checks, scans, packet capture helpers, VPN status, and firewall
-inspection.
+A single `nt` command that wraps the network diagnostics you'd otherwise
+chase across a dozen tools — interfaces, routes, DNS, HTTP/TLS, ports, VPN,
+and firewall status — on macOS and Linux.
 
-The project is designed like `customizecmd`: installable, backup-aware,
-repeatable, and easy to verify.
+```
+$ nt quick
 
-## Quick Install
+==> Local command
+/Users/you/.local/bin/nt
+version 0.4.0
 
-Guided setup, recommended for first-time installs:
+==> Interfaces
+en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+	inet 10.10.20.14 netmask 0xffffff00 broadcast 10.10.20.255
+
+==> Default route
+default            10.10.20.1         UGSc
+
+==> DNS
+==> Query github.com
+140.82.121.3
+
+==> Public IP
+203.0.113.42
+```
+
+No config files, no daemons — it's a POSIX shell script that shells out to
+tools already on your machine (or tells you what's missing).
+
+## Why
+
+Diagnosing a network issue usually means remembering the right invocation for
+`dig` vs `nslookup`, `ip` vs `ifconfig`, `ss` vs `netstat` — and it's
+different on macOS and Linux. `nt` picks the right tool for the OS, degrades
+gracefully when something isn't installed, and gives every check the same
+shape so you can script around it.
+
+## Install
+
+Guided setup (recommended for first-time installs):
 
 ```sh
+git clone https://github.com/MikroJit-Technologies/Network-tools-.git
+cd Network-tools-
 ./setup.sh
 ```
 
-Direct install:
+Direct install, no prompts:
 
 ```sh
 ./install.sh
 ```
 
-One-line install from GitHub:
-
-```sh
-git clone https://github.com/MikroJit-Technologies/Network-tools-.git && cd Network-tools- && ./install.sh
-```
-
-One-line guided setup:
-
-```sh
-git clone https://github.com/MikroJit-Technologies/Network-tools-.git && cd Network-tools- && ./setup.sh
-```
-
-This installs:
-
-- `nt` command to `~/.local/bin/nt`
-- shell completion to `~/.config/network-tools/completions/nt.zsh`
-- shell integration to `~/.config/network-tools/network-tools.zsh`
-- managed `.zshrc` block so completion loads automatically
-
-## Full Install
-
-Install recommended packages first, then install the command. The installer
-auto-detects macOS or Linux and uses `brew`, `apt`, `dnf`, or `pacman` when
-available.
+Install with recommended network packages first (auto-detects `brew`, `apt`,
+`dnf`, or `pacman`):
 
 ```sh
 ./install.sh --install-deps
 ```
 
-Equivalent Make targets:
+Any of these installs:
+
+- `nt` to `~/.local/bin/nt`
+- Zsh completion to `~/.config/network-tools/completions/nt.zsh`
+- Shell integration to `~/.config/network-tools/network-tools.zsh`
+- A managed block in `~/.zshrc` so completion loads automatically
+
+Make sure `~/.local/bin` is on your `PATH`.
+
+### Other install flags
 
 ```sh
-make setup
-make install
-make install-full
+./install.sh --check        # inspect this machine, install nothing
+./install.sh --dry-run      # show what would change
+./install.sh --update       # git pull, then reinstall
+./install.sh --wizard       # interactive setup (same as setup.sh)
+./install.sh --no-shell     # skip completion/shell integration
+./install.sh --no-rc        # don't touch ~/.zshrc
+./setup.sh --reset          # uninstall, then run the wizard fresh
 ```
 
-Update an existing checkout and reinstall:
-
-```sh
-./install.sh --update
-```
-
-Run the guided setup anytime:
-
-```sh
-./install.sh --wizard
-```
-
-Try a clean reinstall flow:
-
-```sh
-./setup.sh --reset
-```
-
-## Usage
-
-```sh
-nt help
-nt doctor
-nt quick
-nt tools
-nt summary
-nt dns github.com
-nt http https://github.com
-nt tls github.com
-nt ping 1.1.1.1
-nt trace github.com
-nt ports
-nt scan 192.168.1.1
-nt capture any
-nt wifi
-nt export
-nt path
-nt fix
-nt selftest
-nt vpn
-nt firewall
-```
+Equivalent `make` targets: `make setup`, `make install`, `make install-full`,
+`make update`.
 
 ## Commands
 
-- `doctor` - show installed network tools and missing recommendations
-- `quick` - run a short connectivity and local-network check
-- `tools` - show grouped tool inventory
-- `summary` - show interfaces, routes, DNS, public IP, and listening ports
-- `interfaces` - show IP addresses and link details
-- `routes` - show routes
-- `dns [host]` - show resolver status and query a host
-- `http [url]` - show HTTP response headers and timing
-- `tls <host> [port]` - show TLS certificate summary
-- `whois <target>` - run `whois` or RDAP lookup
-- `ping [host]` - ping a host
-- `trace [host]` - trace a route with `mtr`, `traceroute`, or `tracepath`
-- `ports` - show listening TCP/UDP ports
-- `scan <target>` - run a fast top-port `nmap` scan
-- `capture [iface] [file]` - run `tcpdump` packet capture
-- `wifi` - show Wi-Fi device and NetworkManager status
-- `monitor [seconds]` - watch the network overview
-- `export [file]` - write a diagnostic report
-- `path` - show installed command and config paths
-- `fix` - clear stale `nt` aliases and reload shell integration
-- `selftest` - run local smoke tests for `nt`
-- `vpn` - show Tailscale, WireGuard, and OpenVPN status
-- `firewall` - show UFW, nftables, and iptables status
-- `speed` - run `speedtest` if installed
-- `myip` - show public IP address
+| Command | What it does |
+|---|---|
+| `nt doctor` | Installed vs. missing network tools, grouped by OS |
+| `nt quick` | Fast connectivity check: interfaces, default route, DNS, public IP |
+| `nt tools` | Full tool inventory grouped by purpose |
+| `nt summary` | Interfaces, routes, DNS, public IP, and listening ports in one pass |
+| `nt interfaces` | Interface addresses and link state |
+| `nt routes` | Routing table and rules |
+| `nt dns [host]` | Resolver status and a DNS query (default `github.com`) |
+| `nt http [url]` | HTTP response headers with timing breakdown |
+| `nt tls <host> [port]` | TLS certificate subject, issuer, dates, fingerprint |
+| `nt whois <target>` | `whois`, falling back to an RDAP lookup |
+| `nt ping [host]` | Ping a host (default `1.1.1.1`) |
+| `nt trace [host]` | Route trace via `mtr`, `traceroute`, or `tracepath` |
+| `nt ports` | Listening TCP/UDP ports |
+| `nt scan <target>` | Fast top-100-port `nmap` scan |
+| `nt capture [iface] [file]` | `tcpdump` packet capture to a file |
+| `nt wifi` | Wi-Fi device and connection status |
+| `nt monitor [seconds]` | Re-run `summary` on a loop |
+| `nt export [file]` | Write a full diagnostic report to a text file |
+| `nt vpn` | Tailscale, WireGuard, and OpenVPN status |
+| `nt firewall` | pf (macOS) or UFW/nftables/iptables (Linux) status |
+| `nt speed` | Run `speedtest` or `speedtest-cli` if installed |
+| `nt myip` | Public IP address |
+| `nt path` | Where `nt` and its config files are installed |
+| `nt fix` | Clear a stale shell alias and reload shell integration |
+| `nt selftest` | Smoke-test core commands and shell integration |
 
-## Roll Back
+Run `nt help` for the full usage summary.
 
-```sh
-./uninstall.sh
-```
-
-Preview rollback:
+## Uninstall
 
 ```sh
-./uninstall.sh --dry-run
+./uninstall.sh            # remove installed files and the ~/.zshrc block
+./uninstall.sh --dry-run  # preview what would be removed
 ```
 
 ## Verify
 
 ```sh
-./verify.sh
+./verify.sh      # shell syntax checks + smoke tests (+ shellcheck if installed)
 make verify
 nt selftest
 ```
 
+## How it works
+
+`bin/nt` is a single POSIX (`sh`) script — no Bash-only syntax, no external
+runtime. Every command:
+
+- picks the right underlying tool for `Darwin` vs `Linux` (e.g. `ifconfig`
+  vs `ip`, `netstat` vs `ss`, `pfctl` vs `nftables`/`ufw`)
+- checks with `command -v` before running anything, and reports `missing
+  <command>` instead of failing silently
+- writes plain text to stdout, so output pipes cleanly into `nt export` or
+  your own scripts
+
+The installer (`install.sh`) is idempotent: re-running it backs up any file
+it's about to overwrite (`<file>.backup.<timestamp>`) and skips files that
+are already up to date.
+
 ## Documentation
 
-- [docs/nt.md](docs/nt.md) - command reference and troubleshooting
-- [CHANGELOG.md](CHANGELOG.md) - release notes
+- [docs/nt.md](docs/nt.md) — command reference and troubleshooting
+- [CHANGELOG.md](CHANGELOG.md) — release notes
 
-## License
+## Requirements
 
-MIT License. See [LICENSE](LICENSE).
+Nothing beyond a POSIX shell and the individual tools each command wraps —
+`nt doctor` tells you what's missing. Recommended packages:
 
-## Shell Integration
-
-The installer adds this managed block to `~/.zshrc` automatically:
-
-```sh
-# >>> network-tools >>>
-[ -r "$HOME/.config/network-tools/network-tools.zsh" ] && source "$HOME/.config/network-tools/network-tools.zsh"
-# <<< network-tools <<<
-```
-
-Use `./install.sh --no-rc` if you want to manage shell startup yourself.
-
-If `nt` ever runs another alias from an old shell session, run:
-
-```sh
-nt fix
-```
-
-## Recommended Packages
-
-Linux:
+**Linux (apt)**
 
 ```sh
 sudo apt update
 sudo apt install -y iproute2 net-tools iputils-ping traceroute mtr-tiny dnsutils whois openssl curl wget netcat-openbsd nmap tcpdump tshark ethtool wireless-tools network-manager nftables ufw openssh-client rsync tailscale wireguard openvpn
 ```
 
-macOS:
+**macOS (Homebrew)**
 
 ```sh
 brew install curl wget nmap tcpdump wireshark mtr bind whois openssl netcat tailscale wireguard-tools openvpn
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
